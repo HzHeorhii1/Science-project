@@ -1,0 +1,116 @@
+
+#include <ESP8266WiFi.h>
+#include <PubSubClient.h>
+
+#define leftMotorForward  2     // GPIO2(D4) -> IN3   
+#define rightMotorForward  15   // GPIO15(D8) -> IN1  
+#define leftMotorBackward 0    // GPIO0(D3) -> IN4  
+#define rightMotorBackward  13  // GPIO13(D7) -> IN2  
+
+bool up = 0;
+bool down = 0;
+bool left = 0;
+bool right = 0;
+
+const char* ssid = "*************"; //ім'я wifi точки
+const char* password = "*************"; //пароль wifi точки
+
+const char *mqtt_server = "srv1.clusterfly.ru"; // ім'я сервера MQTT
+const int mqtt_port = 9124; // Порт для підключення до сервера MQTT
+const char *mqtt_user = "*************"; // Логін від сервера
+const char *mqtt_pass = "*************"; // Пароль від сервера
+
+#define BUFFER_SIZE 100
+
+
+void setup() {
+    Serial.begin(115200);
+    delay(10);
+    
+  pinMode(leftMotorForward, OUTPUT);
+  pinMode(rightMotorForward, OUTPUT); 
+  pinMode(leftMotorBackward, OUTPUT);  
+  pinMode(rightMotorBackward, OUTPUT);
+}
+void callback(const MQTT::Publish& pub)     
+{
+    Serial.print(pub.topic());                
+    Serial.print(" => ");
+    Serial.println(pub.payload_string());     
+    
+    String payload = pub.payload_string();
+    
+    //двигуни
+    if(String(pub.topic()) == "user_bc5ec475/test")     
+    {
+      digitalWrite(leftMotorForward,LOW);
+      digitalWrite(rightMotorForward,HIGH);
+      digitalWrite(rightMotorBackward,LOW);
+      digitalWrite(leftMotorBackward,HIGH);  
+    }
+    
+    if(String(pub.topic()) == "user_bc5ec475/test")     
+    {
+      digitalWrite(leftMotorForward,HIGH);
+      digitalWrite(rightMotorForward,LOW);
+      digitalWrite(rightMotorBackward,HIGH);
+      digitalWrite(leftMotorBackward,LOW);
+    }
+    
+    if(String(pub.topic()) == "user_bc5ec475/test")    
+    {
+      digitalWrite(leftMotorForward,HIGH);
+      digitalWrite(rightMotorForward,HIGH);
+      digitalWrite(leftMotorBackward,LOW);
+      digitalWrite(rightMotorBackward,LOW);
+    }
+        if(String(pub.topic()) == "user_bc5ec475/test")   
+    {
+      digitalWrite(leftMotorBackward,HIGH);
+      digitalWrite(rightMotorBackward,HIGH);
+      digitalWrite(leftMotorForward,LOW);
+      digitalWrite(rightMotorForward,LOW);
+    }
+    
+}
+
+
+
+WiFiClient wclient;      
+PubSubClient client(wclient, mqtt_server, mqtt_port);
+
+
+
+void loop() {
+    // підключаємось до wi-fi точки
+    if (WiFi.status() != WL_CONNECTED) {
+        Serial.print("Connecting to ");
+        Serial.print(ssid);
+        Serial.println("...");
+        WiFi.begin(ssid, password);
+        
+        if (WiFi.waitForConnectResult() != WL_CONNECTED)
+            return;
+        Serial.println("WiFi connected");
+    }
+    
+    // підключаємось до MQTT сервера
+    if (WiFi.status() == WL_CONNECTED) {
+        if (!client.connected()) {
+            Serial.println("Connecting to MQTT server");
+            if (client.connect(MQTT::Connect("user_bc5ec475")
+                                 .set_auth(mqtt_user, mqtt_pass))) {
+                Serial.println("Connected to MQTT server");
+                client.set_callback(callback);
+                client.subscribe("user_bc5ec475/test");                 
+            } else {
+                Serial.println("Could not connect to MQTT server");   
+            }
+        }
+        
+        if (client.connected()){
+            client.loop();
+            
+        }
+    }
+} 
